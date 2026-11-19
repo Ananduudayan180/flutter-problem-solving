@@ -8,21 +8,21 @@ class Product {
   final String name;
   final double price;
   final IconData image;
-  final int quantity;
+  final bool isFav;
 
   const Product({
     required this.name,
     required this.price,
     required this.image,
-    required this.quantity,
+    required this.isFav,
   });
 
-  Product copyWith(int? quantity) {
+  Product copyWith(bool? isFav) {
     return Product(
       name: name,
       price: price,
       image: image,
-      quantity: quantity ?? this.quantity,
+      isFav: isFav ?? this.isFav,
     );
   }
 }
@@ -79,100 +79,78 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Product> products = [
+  static final List<Product> _products = [
     Product(
       name: 'Wireless Mouse',
       price: 500,
       image: Icons.mouse,
-      quantity: 0,
+      isFav: false,
     ),
     Product(
       name: 'Mechanical Keyboard',
       price: 899,
       image: Icons.keyboard,
-      quantity: 0,
+      isFav: false,
     ),
-    Product(name: 'USB-C Hub', price: 300, image: Icons.usb, quantity: 0),
+    Product(name: 'USB-C Hub', price: 300, image: Icons.usb, isFav: false),
     Product(
       name: 'HD Monitor',
       price: 59000,
       image: Icons.monitor,
-      quantity: 0,
+      isFav: false,
     ),
     Product(
       name: 'Gaming Headset',
       price: 3999,
       image: Icons.headset,
-      quantity: 0,
+      isFav: false,
     ),
   ];
 
-  MyCart makeCart() {
-    int totalQuantity = 0;
-    double totalPrice = 0;
-
-    for (final e in products) {
-      totalQuantity += e.quantity;
-      totalPrice += e.price * e.quantity;
-    }
-
-    return MyCart(totalQuantity: totalQuantity, totalPrice: totalPrice);
+  int checkFavCount() {
+    return _productsListNotifier.value.where((e) {
+      return e.isFav;
+    }).length;
   }
+
+  final ValueNotifier<List<Product>> _productsListNotifier = ValueNotifier(
+    _products,
+  );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Shopping Cart')),
+      appBar: AppBar(title: Text('Product Wishlist')),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView.builder(
-                itemCount: products.length,
-                itemBuilder: (context, index) {
-                  final product = products[index];
-
-                  return ProductTile(
-                    product: product,
-                    tapToAdd: () {
-                      setState(() {
-                        products[index] = product.copyWith(
-                          product.quantity + 1,
-                        );
-                      });
-                    },
-                    tapToRemove: () {
-                      setState(() {
-                        if (product.quantity != 0) {
-                          products[index] = product.copyWith(
-                            product.quantity - 1,
-                          );
-                        }
-                      });
-                    },
-                  );
-                },
-              ),
-            ),
-
-            Column(
-              mainAxisAlignment: MainAxisAlignment.end,
+        child: ValueListenableBuilder(
+          valueListenable: _productsListNotifier,
+          builder: (context, products, child) {
+            return Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Quantity'),
-                    Text('${makeCart().totalQuantity}'),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [Text('Total'), Text('${makeCart().totalPrice}')],
+                Text('Favourite products: ${checkFavCount()}'),
+                SizedBox(height: 16),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: products.length,
+                    itemBuilder: (context, index) {
+                      final product = products[index];
+
+                      return ProductTile(
+                        product: product,
+
+                        onPressed: () {
+                          products[index] = product.copyWith(!product.isFav);
+
+                          _productsListNotifier.value = List.from(products);
+                        },
+                      );
+                    },
+                  ),
                 ),
               ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -181,13 +159,12 @@ class _HomePageState extends State<HomePage> {
 
 class ProductTile extends StatelessWidget {
   final Product product;
-  final VoidCallback tapToAdd;
-  final VoidCallback tapToRemove;
+  final VoidCallback onPressed;
+
   const ProductTile({
     super.key,
     required this.product,
-    required this.tapToAdd,
-    required this.tapToRemove,
+    required this.onPressed,
   });
 
   @override
@@ -198,21 +175,12 @@ class ProductTile extends StatelessWidget {
         tileColor: Colors.black12,
         leading: Icon(product.image),
         title: Text(product.name),
-        subtitle: SizedBox(
-          child: Row(
-            children: [
-              IconButton(onPressed: tapToRemove, icon: Icon(Icons.remove)),
-              Text(product.quantity.toString()),
-              IconButton(onPressed: tapToAdd, icon: Icon(Icons.add)),
-            ],
-          ),
-        ),
-        trailing: Text(
-          '₹${product.quantity == 0 ? product.price : product.price * product.quantity}',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+        subtitle: Text('${product.price}'),
+        trailing: IconButton(
+          onPressed: onPressed,
+          icon: Icon(
+            product.isFav ? Icons.favorite : Icons.favorite_border,
+            color: product.isFav ? Colors.red : Colors.black,
           ),
         ),
       ),
